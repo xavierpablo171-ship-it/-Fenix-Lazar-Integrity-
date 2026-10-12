@@ -1,0 +1,34 @@
+# ==============================================================================
+# FÉNIX LAZAR v5.1: EJECUCIÓN PRINCIPAL (Parte 4/4)
+# ==============================================================================
+
+print("🔍 Buscando archivos .parquet en Google Drive...")
+all_parquets = []
+for root, dirs, files in os.walk('/content/drive/MyDrive'):
+    for file in files:
+        if file.endswith('.parquet'):
+            all_parquets.append(os.path.join(root, file))
+
+if not all_parquets:
+    print("[ERROR] No se encontraron archivos .parquet en tu Drive.")
+    print("Por favor, sube tu captura de Solana a cualquier carpeta de Drive.")
+else:
+    # Tomar el archivo más reciente automáticamente
+    latest_file = max(all_parquets, key=os.path.getmtime)
+    print(f"[ÉXITO] Archivo encontrado: {latest_file}")
+    
+    try:
+        # Inicialización del motor con el archivo real
+        auditor = FenixLazarIntegrity(latest_file)
+        
+        # Paso 1: Ingesta y Limpieza Estructural
+        df_clean = auditor.ingest_and_clean()
+        
+        # Paso 2: Auditoría Estadística (Diff Rho)
+        metrics = auditor.run_integrity_audit()
+        
+        # Paso 3: Generación del Bundle Criptográfico
+        final_bundle = auditor.create_audit_bundle(metrics)
+        
+    except Exception as e:
+        print(f"[ERROR EN EJECUCIÓN] {e}")
