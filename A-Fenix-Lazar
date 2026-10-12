@@ -1,0 +1,39 @@
+# ==============================================================================
+# FÉNIX LAZAR v5.1: INTEGRITY CORE FOR SOLANA (Parte 1/4)
+# ==============================================================================
+import os
+import glob
+import pandas as pd
+import numpy as np
+from scipy import stats
+import hashlib
+import json
+import time
+import logging
+
+# Configuración de Logging para trazabilidad
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('FenixLazarCore')
+
+class FenixLazarIntegrity:
+    """
+    Motor de auditoría para métricas de rendimiento de Solana.
+    Elimina sesgos estructurales y proporciona atestación criptográfica.
+    """
+    def __init__(self, file_path):
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"El archivo no existe: {file_path}")
+            
+        self.file_path = file_path
+        self.df = None
+        # Constante oficial Agave 4.2 (Vigente desde Sept 2026)
+        self.SLOT_DURATION_NS = 250_000_000 
+        self.signer_id = "FENIX_LAZAR_SIGNER_V1"
+
+    def _get_file_hash(self):
+        """Calcula el hash SHA3-512 del archivo fuente para integridad."""
+        sha3 = hashlib.sha3_512()
+        with open(self.file_path, 'rb') as f:
+            while chunk := f.read(8192):
+                sha3.update(chunk)
+        return sha3.hexdigest()
