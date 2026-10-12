@@ -1,0 +1,44 @@
+# ==============================================================================
+# FÉNIX LAZAR v5.1: INGESTA Y LIMPIEZA (Parte 2/4)
+# ==============================================================================
+
+    def ingest_and_clean(self):
+        """Carga, valida y limpia el Parquet eliminando tautologías."""
+        try:
+            logger.info(f"Iniciando carga de: {self.file_path}")
+            self.df = pd.read_parquet(self.file_path)
+            
+            # 1. Validación de Esquema Mínimo
+            required_cols = ['recv_ns', 'slot']
+            missing = [col for col in required_cols if col not in self.df.columns]
+            if missing:
+                raise ValueError(f"Esquema inválido. Faltan columnas críticas: {missing}")
+            
+            # 2. Limpieza de Datos Corruptos
+            initial_len = len(self.df)
+            self.df.dropna(subset=['recv_ns', 'slot'], inplace=True)
+            dropped = initial_len - len(self.df)
+            if dropped > 0:
+                logger.warning(f"Se eliminaron {dropped} filas con valores nulos.")
+
+            # 3. Ordenamiento Estricto por Slot y Tiempo
+            self.df = self.df.sort_values(by=['slot', 'recv_ns']).reset_index(drop=True)
+            
+            # 4. Cálculo de Window Duration sin Lookahead Bias
+            # Usamos el primer evento empírico del slot como referencia real
+            slot_starts = self.df.groupby('slot')['recv_ns'].transform('min')
+            self.df['window_duration_ns'] = self.df['recv_ns'] - slot_starts
+            
+            # 5. Eliminación de Features Espurias (Tautologías)
+            cols_to_drop = ['position_bucket', 'market_volatility']
+            existing_cols = [c for c in cols_to_drop if c in self.df.columns]
+            if existing_cols:
+                self.df.drop(columns=existing_cols, inplace=True)
+                logger.info(f"Variables espurias eliminadas: {existing_cols}")
+
+            logger.info(f"Procesamiento completado. {len(self.df)} eventos limpios listos.")
+            return self.df
+
+        except Exception as e:
+            logger.error(f"Error crítico en ingesta: {str(e)}")
+            raise
